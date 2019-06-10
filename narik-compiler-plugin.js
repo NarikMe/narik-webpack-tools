@@ -33,11 +33,11 @@ class NarikCompilerPlugin {
       if (classMetadata && classMetadata.decorators) {
         var templateDecorator = classMetadata.decorators.filter(
           x =>
-          x.expression.symbol &&
-          (x.expression.symbol.name === "NarikBaseTemplate" ||
-            (this.options.decoratorPattern &&
-              x.expression.symbol.name &&
-              x.expression.symbol.name.match(this.options.decoratorPattern)))
+            x.expression.symbol &&
+            (x.expression.symbol.name === "NarikBaseTemplate" ||
+              (this.options.decoratorPattern &&
+                x.expression.symbol.name &&
+                x.expression.symbol.name.match(this.options.decoratorPattern)))
         )[0];
         if (templateDecorator) {
           var uiKey = "";
@@ -65,25 +65,35 @@ class NarikCompilerPlugin {
           }
 
           var host = aotPlugin._program.hostAdapter;
-          var ui = isKey ?
-            this.options.resolver.Resolve(uiKey) : {
-              templateUrl: uiKey
-            };
+          var ui = isKey
+            ? this.options.resolver.Resolve(uiKey)
+            : {
+                templateUrl: uiKey
+              };
           if (ui.templateUrl) {
-            var fullUrl = isKey ?
-              path.join(aotPlugin._basePath, ui.templateUrl) :
-              host.resourceNameToFileName(
-                ui.templateUrl,
-                prenomData.componentType.filePath
-              );
+            var fullUrl = isKey
+              ? path.join(
+                  aotPlugin._options.mainPath.replace(
+                    path.basename(aotPlugin._mainPath),
+                    ""
+                  ),
+                  ui.templateUrl
+                )
+              : host.resourceNameToFileName(
+                  ui.templateUrl,
+                  prenomData.componentType.filePath
+                );
 
             var resource = host.loadResource(fullUrl);
             if (resource.then) {
-              resource.then(baseTemplate => {
-                r(this.mergeTemplates(baseTemplate, template));
-              }, err => {
-                console.log(err);
-              });
+              resource.then(
+                baseTemplate => {
+                  r(this.mergeTemplates(baseTemplate, template));
+                },
+                err => {
+                  console.log(err);
+                }
+              );
             } else {
               r(this.mergeTemplates(resource, template));
             }
@@ -101,7 +111,7 @@ class NarikCompilerPlugin {
     if (!anCompilerPlugin._JitMode) {
       var self = this;
 
-      DirectiveNormalizer.prototype._preParseTemplate = function (prenomData) {
+      DirectiveNormalizer.prototype._preParseTemplate = function(prenomData) {
         var template, templateUrl;
 
         if (prenomData.template != null) {
@@ -117,29 +127,33 @@ class NarikCompilerPlugin {
 
         if (!!template && typeof template.then === "function") {
           return new Promise((resolve, reject) => {
-            template.then(template => {
-              self
-                .applyUiTemplate(anCompilerPlugin, prenomData, template)
-                .then(nTemplate =>
-                  resolve(
-                    this._preparseLoadedTemplate(
-                      prenomData,
-                      nTemplate,
-                      templateUrl
-                    )
-                  ), (err) => {
-                    console.log(err)
-                  }
-                );
-            }, err => {
-              console.log(err);
-            });
+            template.then(
+              template => {
+                self
+                  .applyUiTemplate(anCompilerPlugin, prenomData, template)
+                  .then(
+                    nTemplate =>
+                      resolve(
+                        this._preparseLoadedTemplate(
+                          prenomData,
+                          nTemplate,
+                          templateUrl
+                        )
+                      ),
+                    err => {
+                      console.log(err);
+                    }
+                  );
+              },
+              err => {
+                console.log(err);
+              }
+            );
           });
         } else {
           return new Promise((resolve, reject) => {
-            self
-              .applyUiTemplate(anCompilerPlugin, prenomData, template)
-              .then(nTemplate =>
+            self.applyUiTemplate(anCompilerPlugin, prenomData, template).then(
+              nTemplate =>
                 resolve(
                   this._preparseLoadedTemplate(
                     prenomData,
@@ -147,10 +161,10 @@ class NarikCompilerPlugin {
                     templateUrl
                   )
                 ),
-                (err) => {
-                  console.log(err);
-                }
-              );
+              err => {
+                console.log(err);
+              }
+            );
           });
         }
       };
