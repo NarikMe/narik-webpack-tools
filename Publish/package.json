@@ -22,7 +22,7 @@
     "url": "https://github.com/NarikMe/narik-webpack-tools/issues"
   },
   "homepage": "http://narik.me",
-  "peerDependencies": {
+  "dependencies": {
     "loader-utils": "^0.2.15",
     "urijs": "^1.19.1"
   }
