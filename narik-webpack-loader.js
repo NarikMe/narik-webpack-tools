@@ -17,9 +17,7 @@ function replaceStringsWithRequires(string, resolver, basePath) {
         var d = URI(info.templateUrl)
           .relativeTo(basePath.replace(/\\/g, "/"))
           .toString();
-        if (d.startsWith("../")) {
-          d = d.substring(1, d.length);
-        } else if (d.charAt(0) !== ".") {
+        if (d.startsWith("../") || d.charAt(0) !== ".") {
           d = "./" + d;
         }
         return "require('raw-loader!" + d + "')";

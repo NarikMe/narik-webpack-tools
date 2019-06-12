@@ -72,13 +72,7 @@ class NarikCompilerPlugin {
               };
           if (ui.templateUrl) {
             var fullUrl = isKey
-              ? path.join(
-                  aotPlugin._options.mainPath.replace(
-                    path.basename(aotPlugin._mainPath),
-                    ""
-                  ),
-                  ui.templateUrl
-                )
+              ? path.join(aotPlugin._basePath, ui.templateUrl)
               : host.resourceNameToFileName(
                   ui.templateUrl,
                   prenomData.componentType.filePath
