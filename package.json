@@ -1,6 +1,6 @@
 {
   "name": "narik-webpack-tools",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Narik webpack Tools",
   "main": "index.js",
   "scripts": {

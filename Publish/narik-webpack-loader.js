@@ -54,7 +54,9 @@ narikWebPackLoader = function(source, sourcemap) {
   var resourcePath = this.resourcePath;
   var basePath = plugin._basePath;
 
-  resourcePath = resourcePath.replace(basePath, "");
+  resourcePath = resourcePath.replace(basePath, "")
+  .replace(basePath.replace(/\\/g, "/"),"")
+  .replace(basePath.replace(/\//g, "\\"),"");
 
   var newSource = source.replace(templateIdRegex, function(match, url) {
     return (
