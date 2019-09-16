@@ -1,8 +1,6 @@
 var URI = require("urijs");
 
 var templateIdRegex = /NarikBaseTemplate\s*\((\s*['"`](.*?)['"`]\s*([)}]))/gm;
-var baseTemplateUrlRegex = /baseTemplateUrl\s*:(\s*['"`](.*?)['"`]\s*([,}]))/gm;
-var baseTemplateKeyRegex = /baseTemplateKey\s*:(\s*['"`](.*?)['"`]\s*([,}]))/gm;
 var applyBaseUrlRegex = /applyBaseTemplate\(cls,\s*(\s*['"`](.*?)['"`]\s*([)}]))/gm;
 var stringRegex = /(['`"])((?:[^\\]\\\1|.)*?)\1/g;
 
@@ -37,8 +35,6 @@ narikWebPackLoader = function(source, sourcemap) {
   var config = {};
   var resolver = this.query ? this.query.resolver : null;
   var templateDecorator = "NarikBaseTemplate";
-  var baseTemplateUrl = "baseTemplateUrl:";
-  var baseTemplateKey = "baseTemplateKey:";
   var applyBaseItemFunc = "applyBaseTemplate(cls,";
 
   // Not cacheable during unit tests;
@@ -73,17 +69,6 @@ narikWebPackLoader = function(source, sourcemap) {
     );
   });
 
-  var newSource = newSource.replace(baseTemplateUrlRegex, function(match, url) {
-    return (
-      baseTemplateUrl + replaceStringsWithRequires(url, null, resourcePath)
-    );
-  });
-
-  newSource = newSource.replace(baseTemplateKeyRegex, function(match, url) {
-    return (
-      baseTemplateKey + replaceStringsWithRequires(url, resolver, resourcePath)
-    );
-  });
 
   // Support for tests
   if (this.callback) {
