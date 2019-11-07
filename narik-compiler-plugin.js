@@ -1,4 +1,6 @@
 var DirectiveNormalizer = require("@angular/compiler").DirectiveNormalizer;
+const compiler_cli = require("@angular/compiler-cli");
+
 var path = require("path");
 const cheerio = require("cheerio");
 
@@ -7,6 +9,15 @@ class NarikCompilerPlugin {
     this.options = options;
   }
 
+  isUiTemplateDecorator(decorator, options) {
+    return (
+      decorator &&
+      (decorator.name === "NarikBaseTemplate" ||
+        (options.decoratorPattern &&
+          decorator.name &&
+          decorator.name.match(options.decoratorPattern)))
+    );
+  }
   mergeTemplates(baseTemplate, template) {
     const parentDoc$ = cheerio.load(baseTemplate);
     const chilsDoc$ = cheerio.load(template);
@@ -103,66 +114,171 @@ class NarikCompilerPlugin {
       x.hasOwnProperty("_JitMode")
     )[0];
     if (!anCompilerPlugin._JitMode) {
-      var self = this;
-
-      DirectiveNormalizer.prototype._preParseTemplate = function(prenomData) {
-        var template, templateUrl;
-
-        if (prenomData.template != null) {
-          template = prenomData.template;
-          templateUrl = prenomData.moduleUrl;
-        } else {
-          templateUrl = this._urlResolver.resolve(
-            prenomData.moduleUrl,
-            prenomData.templateUrl
-          );
-          template = this._fetch(templateUrl);
-        }
-
-        if (!!template && typeof template.then === "function") {
-          return new Promise((resolve, reject) => {
-            template.then(
-              template => {
-                self
-                  .applyUiTemplate(anCompilerPlugin, prenomData, template)
-                  .then(
-                    nTemplate =>
-                      resolve(
-                        this._preparseLoadedTemplate(
-                          prenomData,
-                          nTemplate,
-                          templateUrl
-                        )
-                      ),
-                    err => {
-                      console.log(err);
-                    }
-                  );
-              },
-              err => {
-                console.log(err);
-              }
-            );
-          });
-        } else {
-          return new Promise((resolve, reject) => {
-            self.applyUiTemplate(anCompilerPlugin, prenomData, template).then(
-              nTemplate =>
-                resolve(
-                  this._preparseLoadedTemplate(
-                    prenomData,
-                    nTemplate,
-                    templateUrl
-                  )
-                ),
-              err => {
-                console.log(err);
-              }
-            );
-          });
-        }
-      };
+      if (anCompilerPlugin._compilerOptions.enableIvy)
+        this.applyOnIvyCompiler(anCompilerPlugin);
+      else this.applyOnNonIvCompiler();
     }
+  }
+
+  applyOnIvyCompiler(plugin) {
+    var that = this;
+    var originalCreateProgram = compiler_cli.createProgram;
+    compiler_cli.createProgram = function(
+      rootNames,
+      options,
+      host,
+      oldProgram
+    ) {
+      let program = originalCreateProgram.call(
+        compiler_cli,
+        rootNames,
+        options,
+        host,
+        oldProgram
+      );
+
+      var originalmakeCompilation = program.makeCompilation;
+      program.makeCompilation = function() {
+        let compilation = originalmakeCompilation.call(program);
+
+        var componentHandler = compilation.handlers.filter(
+          h => h.constructor.name === "ComponentDecoratorHandler"
+        )[0];
+
+        if (componentHandler) {
+          componentHandler._extractExternalTemplate = function(
+            node,
+            component,
+            templateUrlExpr,
+            resourceUrl
+          ) {
+            let templateStr = this.resourceLoader.load(resourceUrl);
+
+            //
+            //Apply Template
+            //
+
+            var reflector = program.compilation.reflector;
+            var decorators = reflector.getDecoratorsOfDeclaration(node);
+
+            var templateDecorator = decorators.filter(x =>
+              that.isUiTemplateDecorator(x, that.options)
+            )[0];
+            if (templateDecorator) {
+              var uiKey = "";
+
+              if (templateDecorator.name === "NarikBaseTemplate") {
+                uiKey = templateDecorator.args[0].text;
+              } else {
+                uiKey = templateDecorator.name;
+              }
+              var ui = that.options.resolver.Resolve(uiKey);
+              if (ui) {
+                let baseTemplateStr = "";
+                if (ui.templateUrl) {
+                  var fullUrl = path.join(plugin._basePath, ui.templateUrl);
+                  baseTemplateStr = this.resourceLoader.load(fullUrl);
+                } else {
+                  baseTemplateStr = ui.template;
+                }
+
+                if (baseTemplateStr)
+                  templateStr = that.mergeTemplates(
+                    baseTemplateStr,
+                    templateStr
+                  );
+              }
+            }
+
+           
+
+            this.resourceDependencies.recordResourceDependency(
+              node.getSourceFile(),
+              resourceUrl
+            );
+            const parseTemplate = options =>
+              this._parseTemplate(
+                component,
+                templateStr,
+                resourceUrl,
+                /* templateRange */ undefined,
+                /* escapedString */ false,
+                options
+              );
+            const templateSourceMapping = {
+              type: "external",
+              componentClass: node,
+              node: templateUrlExpr,
+              template: templateStr,
+              templateUrl: resourceUrl
+            };
+
+            return { parseTemplate, templateSourceMapping };
+          };
+        }
+
+        return compilation;
+      };
+
+      return program;
+    };
+    
+  }
+
+  applyOnNonIvCompiler() {
+    var self = this;
+
+    DirectiveNormalizer.prototype._preParseTemplate = function(prenomData) {
+      var template, templateUrl;
+
+      if (prenomData.template != null) {
+        template = prenomData.template;
+        templateUrl = prenomData.moduleUrl;
+      } else {
+        templateUrl = this._urlResolver.resolve(
+          prenomData.moduleUrl,
+          prenomData.templateUrl
+        );
+        template = this._fetch(templateUrl);
+      }
+
+      if (!!template && typeof template.then === "function") {
+        return new Promise((resolve, reject) => {
+          template.then(
+            template => {
+              self.applyUiTemplate(anCompilerPlugin, prenomData, template).then(
+                nTemplate =>
+                  resolve(
+                    this._preparseLoadedTemplate(
+                      prenomData,
+                      nTemplate,
+                      templateUrl
+                    )
+                  ),
+                err => {
+                  console.log(err);
+                }
+              );
+            },
+            err => {
+              console.log(err);
+            }
+          );
+        });
+      } else {
+        return new Promise((resolve, reject) => {
+          self.applyUiTemplate(anCompilerPlugin, prenomData, template).then(
+            nTemplate =>
+              resolve(
+                this._preparseLoadedTemplate(prenomData, nTemplate, templateUrl)
+              ),
+            err => {
+              console.log(err);
+            }
+          );
+        });
+      }
+    };
   }
 }
 module.exports = NarikCompilerPlugin;
