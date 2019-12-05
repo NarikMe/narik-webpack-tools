@@ -1,3 +1,4 @@
+var ts = require("typescript");
 var DirectiveNormalizer = require("@angular/compiler").DirectiveNormalizer;
 const compiler_cli = require("@angular/compiler-cli");
 
@@ -119,7 +120,19 @@ class NarikCompilerPlugin {
       else this.applyOnNonIvCompiler();
     }
   }
-
+  getTemplateRange(templateExpr) {
+    const startPos = templateExpr.getStart() + 1;
+    const { line, character } = ts.getLineAndCharacterOfPosition(
+      templateExpr.getSourceFile(),
+      startPos
+    );
+    return {
+      startPos,
+      startLine: line,
+      startCol: character,
+      endPos: templateExpr.getEnd() - 1
+    };
+  }
   applyOnIvyCompiler(plugin) {
     var that = this;
     var originalCreateProgram = compiler_cli.createProgram;
@@ -146,6 +159,27 @@ class NarikCompilerPlugin {
         )[0];
 
         if (componentHandler) {
+          var original_extractInlineTemplate =
+            componentHandler._extractInlineTemplate;
+          componentHandler._extractInlineTemplate = function(
+            node,
+            decorator,
+            component,
+            containingFile
+          ) {
+            if (that.getTemplateDecorator(program, node)) {
+              throw `Narik Template Inheritance dose not support "inlineTemplate".
+               Please use templateUrl instead of template!(${node.name.escapedText}:${containingFile})`;
+            }
+            return original_extractInlineTemplate.call(
+              componentHandler,
+              node,
+              decorator,
+              component,
+              containingFile
+            );
+          };
+
           componentHandler._extractExternalTemplate = function(
             node,
             component,
@@ -157,40 +191,13 @@ class NarikCompilerPlugin {
             //
             //Apply Template
             //
-
-            var reflector = program.compilation.reflector;
-            var decorators = reflector.getDecoratorsOfDeclaration(node);
-
-            var templateDecorator = decorators.filter(x =>
-              that.isUiTemplateDecorator(x, that.options)
-            )[0];
-            if (templateDecorator) {
-              var uiKey = "";
-
-              if (templateDecorator.name === "NarikBaseTemplate") {
-                uiKey = templateDecorator.args[0].text;
-              } else {
-                uiKey = templateDecorator.name;
-              }
-              var ui = that.options.resolver.Resolve(uiKey);
-              if (ui) {
-                let baseTemplateStr = "";
-                if (ui.templateUrl) {
-                  var fullUrl = path.join(plugin._basePath, ui.templateUrl);
-                  baseTemplateStr = this.resourceLoader.load(fullUrl);
-                } else {
-                  baseTemplateStr = ui.template;
-                }
-
-                if (baseTemplateStr)
-                  templateStr = that.mergeTemplates(
-                    baseTemplateStr,
-                    templateStr
-                  );
-              }
-            }
-
-           
+            templateStr = that.applyTemplateOnNode(
+              plugin,
+              program,
+              node,
+              templateStr,
+              this.resourceLoader
+            );
 
             this.resourceDependencies.recordResourceDependency(
               node.getSourceFile(),
@@ -222,7 +229,39 @@ class NarikCompilerPlugin {
 
       return program;
     };
-   
+  }
+
+  getTemplateDecorator(program, node) {
+    var reflector = program.compilation.reflector;
+    var decorators = reflector.getDecoratorsOfDeclaration(node);
+
+    return decorators.filter(x =>
+      this.isUiTemplateDecorator(x, this.options)
+    )[0];
+  }
+  applyTemplateOnNode(plugin, program, node, templateStr, resourceLoader) {
+    var templateDecorator = this.getTemplateDecorator(program, node);
+    if (templateDecorator) {
+      var uiKey =
+        templateDecorator.name === "NarikBaseTemplate"
+          ? templateDecorator.args[0].text
+          : templateDecorator.name;
+
+      var ui = this.options.resolver.Resolve(uiKey);
+      if (ui) {
+        let baseTemplateStr = "";
+        if (ui.templateUrl) {
+          var fullUrl = path.join(plugin._basePath, ui.templateUrl);
+          baseTemplateStr = resourceLoader.load(fullUrl);
+        } else {
+          baseTemplateStr = ui.template;
+        }
+        if (baseTemplateStr)
+          templateStr = this.mergeTemplates(baseTemplateStr, templateStr);
+      }
+    }
+
+    return templateStr;
   }
 
   applyOnNonIvCompiler() {
