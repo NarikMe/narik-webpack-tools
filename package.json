@@ -1,10 +1,9 @@
 {
   "name": "narik-webpack-tools",
-  "version": "3.0.0-next.4",
+  "version": "3.0.0-next.6",
   "description": "Narik webpack Tools",
   "main": "index.js",
-  "scripts": {
-  },
+  "scripts": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/NarikMe/narik-webpack-tools.git"
@@ -33,5 +32,8 @@
   "dependencies": {
     "loader-utils": "^0.2.15",
     "urijs": "^1.19.1"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.com/"
   }
 }

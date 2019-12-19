@@ -161,6 +161,8 @@ class NarikCompilerPlugin {
         if (componentHandler) {
           var original_extractInlineTemplate =
             componentHandler._extractInlineTemplate;
+          var original_extractExternalTemplate =
+            componentHandler._extractExternalTemplate;
           componentHandler._extractInlineTemplate = function(
             node,
             decorator,
@@ -172,6 +174,7 @@ class NarikCompilerPlugin {
                Please use templateUrl instead of template!(${node.name.escapedText}:${containingFile})`;
             }
             return original_extractInlineTemplate.call(
+              this,
               componentHandler,
               node,
               decorator,
@@ -186,8 +189,17 @@ class NarikCompilerPlugin {
             templateUrlExpr,
             resourceUrl
           ) {
-            let templateStr = this.resourceLoader.load(resourceUrl);
+            if (!that.getTemplateDecorator(program, node)) {
+              return original_extractExternalTemplate.call(
+                this,
+                node,
+                component,
+                templateUrlExpr,
+                resourceUrl
+              );
+            }
 
+            let templateStr = this.resourceLoader.load(resourceUrl);
             //
             //Apply Template
             //
@@ -199,28 +211,31 @@ class NarikCompilerPlugin {
               this.resourceLoader
             );
 
-            this.resourceDependencies.recordResourceDependency(
-              node.getSourceFile(),
-              resourceUrl
-            );
-            const parseTemplate = options =>
-              this._parseTemplate(
-                component,
-                templateStr,
-                resourceUrl,
-                /* templateRange */ undefined,
-                /* escapedString */ false,
-                options
+            if (this.depTracker !== null) {
+              this.depTracker.addResourceDependency(
+                node.getSourceFile(),
+                resourceUrl
               );
-            const templateSourceMapping = {
-              type: "external",
-              componentClass: node,
-              node: templateUrlExpr,
-              template: templateStr,
-              templateUrl: resourceUrl
-            };
+            }
 
-            return { parseTemplate, templateSourceMapping };
+            const template = this._parseTemplate(
+              component,
+              templateStr,
+              resourceUrl,
+              /* templateRange */ undefined,
+              /* escapedString */ false
+            );
+
+            return {
+              ...template,
+              sourceMapping: {
+                type: "external",
+                componentClass: node,
+                node: templateUrlExpr,
+                template: templateStr,
+                templateUrl: resourceUrl
+              }
+            };
           };
         }
 
