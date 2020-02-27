@@ -120,19 +120,7 @@ class NarikCompilerPlugin {
       else this.applyOnNonIvCompiler();
     }
   }
-  getTemplateRange(templateExpr) {
-    const startPos = templateExpr.getStart() + 1;
-    const { line, character } = ts.getLineAndCharacterOfPosition(
-      templateExpr.getSourceFile(),
-      startPos
-    );
-    return {
-      startPos,
-      startLine: line,
-      startCol: character,
-      endPos: templateExpr.getEnd() - 1
-    };
-  }
+
   applyOnIvyCompiler(plugin) {
     var that = this;
     var originalCreateProgram = compiler_cli.createProgram;
@@ -172,15 +160,16 @@ class NarikCompilerPlugin {
             if (that.getTemplateDecorator(program, node)) {
               throw `Narik Template Inheritance dose not support "inlineTemplate".
                Please use templateUrl instead of template!(${node.name.escapedText}:${containingFile})`;
+            } else {
+              return original_extractInlineTemplate.call(
+                this,
+                componentHandler,
+                node,
+                decorator,
+                component,
+                containingFile
+              );
             }
-            return original_extractInlineTemplate.call(
-              this,
-              componentHandler,
-              node,
-              decorator,
-              component,
-              containingFile
-            );
           };
 
           componentHandler._extractExternalTemplate = function(
@@ -332,6 +321,20 @@ class NarikCompilerPlugin {
           );
         });
       }
+    };
+  }
+
+  getTemplateRange(templateExpr) {
+    const startPos = templateExpr.getStart() + 1;
+    const { line, character } = ts.getLineAndCharacterOfPosition(
+      templateExpr.getSourceFile(),
+      startPos
+    );
+    return {
+      startPos,
+      startLine: line,
+      startCol: character,
+      endPos: templateExpr.getEnd() - 1
     };
   }
 }
