@@ -111,6 +111,7 @@ class NarikCompilerPlugin {
     });
   }
   apply(compiler) {
+	  debugger;
     var anCompilerPlugin = compiler.options.plugins.filter(x =>
       x.hasOwnProperty("_JitMode")
     )[0];
@@ -125,24 +126,18 @@ class NarikCompilerPlugin {
     var that = this;
     var originalCreateProgram = compiler_cli.createProgram;
     compiler_cli.createProgram = function(
-      rootNames,
-      options,
-      host,
-      oldProgram
+      data
     ) {
       let program = originalCreateProgram.call(
         compiler_cli,
-        rootNames,
-        options,
-        host,
-        oldProgram
+        data
       );
 
-      var originalmakeCompilation = program.makeCompilation;
-      program.makeCompilation = function() {
-        let compilation = originalmakeCompilation.call(program);
+      var originalmakeCompilation = program.compiler.makeCompilation;
+      program.compiler.makeCompilation = function() {
+        let compilation = originalmakeCompilation.call(program.compiler);
 
-        var componentHandler = compilation.handlers.filter(
+        var componentHandler = compilation.traitCompiler.handlers.filter(
           h => h.constructor.name === "ComponentDecoratorHandler"
         )[0];
 
@@ -236,7 +231,7 @@ class NarikCompilerPlugin {
   }
 
   getTemplateDecorator(program, node) {
-    var reflector = program.compilation.reflector;
+    var reflector = program.compiler.compilation.traitCompiler.reflector;
     var decorators = reflector.getDecoratorsOfDeclaration(node);
 
     return decorators.filter(x =>
