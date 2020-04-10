@@ -35,7 +35,7 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
-/Publish/**
+/Publish/
 /node_modules/
 /coverage
 /test/coverage
