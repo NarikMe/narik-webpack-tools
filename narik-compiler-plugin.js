@@ -44,7 +44,7 @@ class NarikCompilerPlugin {
 
       if (classMetadata && classMetadata.decorators) {
         var templateDecorator = classMetadata.decorators.filter(
-          x =>
+          (x) =>
             x.expression.symbol &&
             (x.expression.symbol.name === "NarikBaseTemplate" ||
               (this.options.decoratorPattern &&
@@ -80,7 +80,7 @@ class NarikCompilerPlugin {
           var ui = isKey
             ? this.options.resolver.Resolve(uiKey)
             : {
-                templateUrl: uiKey
+                templateUrl: uiKey,
               };
           if (ui.templateUrl) {
             var fullUrl = isKey
@@ -93,10 +93,10 @@ class NarikCompilerPlugin {
             var resource = host.loadResource(fullUrl);
             if (resource.then) {
               resource.then(
-                baseTemplate => {
+                (baseTemplate) => {
                   r(this.mergeTemplates(baseTemplate, template));
                 },
-                err => {
+                (err) => {
                   console.log(err);
                 }
               );
@@ -111,8 +111,7 @@ class NarikCompilerPlugin {
     });
   }
   apply(compiler) {
-	  debugger;
-    var anCompilerPlugin = compiler.options.plugins.filter(x =>
+    var anCompilerPlugin = compiler.options.plugins.filter((x) =>
       x.hasOwnProperty("_JitMode")
     )[0];
     if (!anCompilerPlugin._JitMode) {
@@ -125,20 +124,15 @@ class NarikCompilerPlugin {
   applyOnIvyCompiler(plugin) {
     var that = this;
     var originalCreateProgram = compiler_cli.createProgram;
-    compiler_cli.createProgram = function(
-      data
-    ) {
-      let program = originalCreateProgram.call(
-        compiler_cli,
-        data
-      );
+    compiler_cli.createProgram = function (data) {
+      let program = originalCreateProgram.call(compiler_cli, data);
 
       var originalmakeCompilation = program.compiler.makeCompilation;
-      program.compiler.makeCompilation = function() {
+      program.compiler.makeCompilation = function () {
         let compilation = originalmakeCompilation.call(program.compiler);
 
         var componentHandler = compilation.traitCompiler.handlers.filter(
-          h => h.constructor.name === "ComponentDecoratorHandler"
+          (h) => h.constructor.name === "ComponentDecoratorHandler"
         )[0];
 
         if (componentHandler) {
@@ -146,7 +140,7 @@ class NarikCompilerPlugin {
             componentHandler._extractInlineTemplate;
           var original_extractExternalTemplate =
             componentHandler._extractExternalTemplate;
-          componentHandler._extractInlineTemplate = function(
+          componentHandler._extractInlineTemplate = function (
             node,
             decorator,
             component,
@@ -167,7 +161,7 @@ class NarikCompilerPlugin {
             }
           };
 
-          componentHandler._extractExternalTemplate = function(
+          componentHandler._extractExternalTemplate = function (
             node,
             component,
             templateUrlExpr,
@@ -217,8 +211,8 @@ class NarikCompilerPlugin {
                 componentClass: node,
                 node: templateUrlExpr,
                 template: templateStr,
-                templateUrl: resourceUrl
-              }
+                templateUrl: resourceUrl,
+              },
             };
           };
         }
@@ -234,7 +228,7 @@ class NarikCompilerPlugin {
     var reflector = program.compiler.compilation.traitCompiler.reflector;
     var decorators = reflector.getDecoratorsOfDeclaration(node);
 
-    return decorators.filter(x =>
+    return decorators.filter((x) =>
       this.isUiTemplateDecorator(x, this.options)
     )[0];
   }
@@ -266,7 +260,7 @@ class NarikCompilerPlugin {
   applyOnNonIvCompiler() {
     var self = this;
 
-    DirectiveNormalizer.prototype._preParseTemplate = function(prenomData) {
+    DirectiveNormalizer.prototype._preParseTemplate = function (prenomData) {
       var template, templateUrl;
 
       if (prenomData.template != null) {
@@ -283,9 +277,9 @@ class NarikCompilerPlugin {
       if (!!template && typeof template.then === "function") {
         return new Promise((resolve, reject) => {
           template.then(
-            template => {
+            (template) => {
               self.applyUiTemplate(anCompilerPlugin, prenomData, template).then(
-                nTemplate =>
+                (nTemplate) =>
                   resolve(
                     this._preparseLoadedTemplate(
                       prenomData,
@@ -293,12 +287,12 @@ class NarikCompilerPlugin {
                       templateUrl
                     )
                   ),
-                err => {
+                (err) => {
                   console.log(err);
                 }
               );
             },
-            err => {
+            (err) => {
               console.log(err);
             }
           );
@@ -306,11 +300,11 @@ class NarikCompilerPlugin {
       } else {
         return new Promise((resolve, reject) => {
           self.applyUiTemplate(anCompilerPlugin, prenomData, template).then(
-            nTemplate =>
+            (nTemplate) =>
               resolve(
                 this._preparseLoadedTemplate(prenomData, nTemplate, templateUrl)
               ),
-            err => {
+            (err) => {
               console.log(err);
             }
           );
@@ -329,7 +323,7 @@ class NarikCompilerPlugin {
       startPos,
       startLine: line,
       startCol: character,
-      endPos: templateExpr.getEnd() - 1
+      endPos: templateExpr.getEnd() - 1,
     };
   }
 }
