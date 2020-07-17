@@ -29,8 +29,16 @@ class NarikCompilerPlugin {
       let sectionName = element.attribs["narik-section"];
       var contentItem = chilsDoc$(`[\\#${sectionName}]`)[0];
       if (contentItem && contentItem.tagName.toLowerCase() === "ng-template") {
+        let find = `narik-section="${sectionName}"`;
+        let re = new RegExp(find, "g");
         baseTemplate = baseTemplate.replace(
-          `narik-section="${sectionName}"`,
+          re,
+          `*ngIf="false; else ${sectionName}"`
+        );
+        find = `narik-section='${sectionName}'`;
+        re = new RegExp(find, "g");
+        baseTemplate = baseTemplate.replace(
+          re,
           `*ngIf="false; else ${sectionName}"`
         );
       }
