@@ -39,3 +39,5 @@ Thumbs.db
 /node_modules/
 /coverage
 /test/coverage
+/Publish/package.json
+/Publish/narik-webpack-loader.js

@@ -2,38 +2,30 @@ const cheerio = require("cheerio");
 const fs = require("fs");
 
 narikWebPackLoader = function (source, sourceMap) {
-  debugger;
   const resolver = this.query ? this.query.resolver : null;
+  let keyResolver = this.query ? this.query.keyResolver : null;
+  if (!keyResolver) {
+    keyResolver = defaultKeyResolver;
+  }
   let newSource = source;
   if (resolver) {
     const basePath = this.query.basePath;
-
-    const firstLine = source.split("\n", 1)[0];
-    if (firstLine && firstLine.indexOf("#layout:") >= 0) {
-      const startPos = firstLine.indexOf("'", firstLine.indexOf("#layout:"));
-      if (startPos < 0) {
-        startPos = firstLine.indexOf('"', firstLine.indexOf("#layout:"));
-      }
-      const endPos = firstLine.indexOf("'", startPos + 1);
-      if (endPos < 0) {
-        endPos = firstLine.indexOf('"', startPos + 1);
-      }
-      const layoutKey = firstLine.substring(startPos + 1, endPos);
+    const layoutKey = keyResolver(this.resourcePath, source);
+    if (layoutKey) {
       const info = resolver.Resolve(layoutKey);
       if (info) {
         if (info) {
-          if (info.template) {
-            newSource = mergeTemplates(info.template, source);
+          if (info.layout) {
+            newSource = mergeLayout(info.layout, source);
           } else {
-            const baseTemplatePath = basePath + "/" + info.templateUrl;
-            var baseTemplate = fs.readFileSync(baseTemplatePath, "utf8");
-            newSource = mergeTemplates(baseTemplate, source);
+            const baseLayoutPath = basePath + "/" + info.layoutUrl;
+            var baseLayout = fs.readFileSync(baseLayoutPath, "utf8");
+            newSource = mergeLayout(baseLayout, source);
           }
         }
       }
     }
   }
-
   if (this.callback) {
     this.callback(null, newSource, sourceMap);
   } else {
@@ -41,8 +33,24 @@ narikWebPackLoader = function (source, sourceMap) {
   }
 };
 
-function mergeTemplates(baseTemplate, template) {
-  const parentDoc$ = cheerio.load(baseTemplate);
+function defaultKeyResolver(filePath, fileContent) {
+  const firstLine = fileContent.split("\n", 1)[0];
+  if (firstLine && firstLine.indexOf("#layout:") >= 0) {
+    const startPos = firstLine.indexOf("'", firstLine.indexOf("#layout:"));
+    if (startPos < 0) {
+      startPos = firstLine.indexOf('"', firstLine.indexOf("#layout:"));
+    }
+    const endPos = firstLine.indexOf("'", startPos + 1);
+    if (endPos < 0) {
+      endPos = firstLine.indexOf('"', startPos + 1);
+    }
+    return firstLine.substring(startPos + 1, endPos);
+  }
+  return undefined;
+}
+
+function mergeLayout(layout, template) {
+  const parentDoc$ = cheerio.load(layout);
   const childDoc$ = cheerio.load(template);
   let sectionItems$ = parentDoc$("[narik-section]");
 
@@ -53,19 +61,13 @@ function mergeTemplates(baseTemplate, template) {
     if (contentItem && contentItem.tagName.toLowerCase() === "ng-template") {
       let find = `narik-section="${sectionName}"`;
       let re = new RegExp(find, "g");
-      baseTemplate = baseTemplate.replace(
-        re,
-        `*ngIf="false; else ${sectionName}"`
-      );
+      layout = layout.replace(re, `*ngIf="false; else ${sectionName}"`);
       find = `narik-section='${sectionName}'`;
       re = new RegExp(find, "g");
-      baseTemplate = baseTemplate.replace(
-        re,
-        `*ngIf="false; else ${sectionName}"`
-      );
+      layout = layout.replace(re, `*ngIf="false; else ${sectionName}"`);
     }
   }
-  return baseTemplate + template;
+  return layout + template;
 }
 
 module.exports = narikWebPackLoader;
